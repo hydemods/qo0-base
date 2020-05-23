@@ -206,7 +206,7 @@ struct Variables_t
 	#pragma endregion
 
 	#pragma region variables_menu
-	C_ADDVARIABLE(int, iMenuKey, VK_HOME);
+	C_ADDVARIABLE(int, iMenuKey, VK_INSERT);
 	C_ADDVARIABLE(int, iPanicKey, VK_END);
 	#pragma endregion
 };
