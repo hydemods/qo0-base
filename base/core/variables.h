@@ -34,7 +34,7 @@ enum class EAntiAimPitchType : int
 enum class EAntiAimYawType : int
 {
 	NONE = 0,
-	SIDEWAYS
+	DESYNC
 };
 
 enum class EVisualsBoxType : int
@@ -72,6 +72,15 @@ enum class EVisualsViewModelChams : int
 
 struct Variables_t
 {
+	#pragma region variables_rage
+	C_ADDVARIABLE(bool, bRage, false);
+
+	C_ADDVARIABLE(bool, bAntiAim, false);
+	C_ADDVARIABLE(int, iAntiAimPitch, 0);
+	C_ADDVARIABLE(int, iAntiAimYaw, 0);
+	C_ADDVARIABLE(int, iAntiAimDesyncKey, VK_XBUTTON1);
+	#pragma endregion
+
 	#pragma region variables_legit
 	C_ADDVARIABLE(bool, bLegit, false);
 
@@ -88,21 +97,12 @@ struct Variables_t
 	C_ADDVARIABLE(bool, bTriggerLegs, false);
 	#pragma endregion
 
-	#pragma region variables_rage
-	C_ADDVARIABLE(bool, bRage, false);
-
-	C_ADDVARIABLE(bool, bAntiAim, false);
-	C_ADDVARIABLE(int, iAntiAimPitch, 0);
-	C_ADDVARIABLE(int, iAntiAimYaw, 0);
-	#pragma endregion
-
 	#pragma region variables_visuals
 	C_ADDVARIABLE(bool, bEsp, false);
 
 	C_ADDVARIABLE(bool, bEspMain, false);
 	C_ADDVARIABLE(bool, bEspMainEnemies, false);
 	C_ADDVARIABLE(bool, bEspMainAllies, false);
-	C_ADDVARIABLE(bool, bEspMainLocal, false);
 	C_ADDVARIABLE(bool, bEspMainWeapons, false);
 	C_ADDVARIABLE(bool, bEspMainGrenades, false);
 	C_ADDVARIABLE(bool, bEspMainBomb, false);
@@ -136,7 +136,6 @@ struct Variables_t
 	C_ADDVARIABLE(bool, bEspGlow, false);
 	C_ADDVARIABLE(bool, bEspGlowEnemies, false);
 	C_ADDVARIABLE(bool, bEspGlowAllies, false);
-	C_ADDVARIABLE(bool, bEspGlowLocal, false);
 	C_ADDVARIABLE(bool, bEspGlowWeapons, false);
 	C_ADDVARIABLE(bool, bEspGlowGrenades, false);
 	C_ADDVARIABLE(bool, bEspGlowBomb, false);
@@ -155,7 +154,6 @@ struct Variables_t
 	C_ADDVARIABLE(bool, bEspChams, false);
 	C_ADDVARIABLE(bool, bEspChamsEnemies, false);
 	C_ADDVARIABLE(bool, bEspChamsAllies, false);
-	C_ADDVARIABLE(bool, bEspChamsLocal, false);
 	C_ADDVARIABLE(bool, bEspChamsViewModel, false);
 
 	C_ADDVARIABLE(bool, bEspChamsXQZ, false);

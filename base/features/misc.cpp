@@ -26,8 +26,8 @@ void CMiscellaneous::Run(CUserCmd* pCmd, CBaseEntity* pLocal, bool& bSendPacket)
 	if (C::Get<bool>(Vars.bAutoStrafe))
 		AutoStrafe(pCmd, pLocal);
 
-	if (C::Get<bool>(Vars.bRankReveal) && pCmd->iButtons & IN_SCORE) // @todo: make in hook
-		I::Client->DispatchUserMessage(CS_UM_ServerRankRevealAll, 0U, 0U, nullptr);
+	if (C::Get<bool>(Vars.bRankReveal) && pCmd->iButtons & IN_SCORE)
+		I::Client->DispatchUserMessage(CS_UM_ServerRankRevealAll, 0U, 0, nullptr);
 }
 
 void CMiscellaneous::Event(IGameEvent* pEvent)
@@ -75,7 +75,7 @@ void CMiscellaneous::MovementCorrection(CUserCmd* pCmd, QAngle& angOldViewPoint)
 	// clamp and apply corrected movement
 	pCmd->flForwardMove = std::clamp(x, -450.f, 450.f);
 	pCmd->flSideMove = std::clamp(y, -450.f, 450.f);
-	pCmd->flUpMove = std::clamp(z, -320.f, 320.f);
+	pCmd->flUpMove = std::clamp(z, -450.f, 450.f);
 }
 
 void CMiscellaneous::BunnyHop(CUserCmd* pCmd, CBaseEntity* pLocal)

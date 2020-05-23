@@ -28,7 +28,6 @@ namespace VTABLE
 
 		/* client table */
 		FRAMESTAGENOTIFY = 37,
-		DISPATCHUSERMESSAGE = 38,
 
 		/* panel table */
 		PAINTTRAVERSE = 41,
@@ -42,6 +41,9 @@ namespace VTABLE
 
 		/* modelrender table */
 		DRAWMODELEXECUTE = 21,
+
+		/* studiorender table */
+		DRAWMODEL = 29,
 
 		/* engine table */
 		ISCONNECTED = 27,
@@ -90,7 +92,6 @@ namespace DTR
 	inline CDetourHook Reset;
 	inline CDetourHook EndScene;
 	inline CDetourHook FrameStageNotify;
-	inline CDetourHook DispatchUserMessage;
 	inline CDetourHook OverrideView;
 	inline CDetourHook OverrideMouseInput;
 	inline CDetourHook CreateMove;
@@ -101,7 +102,7 @@ namespace DTR
 	inline CDetourHook IsConnected;
 	inline CDetourHook ListLeavesInBox;
 	inline CDetourHook PaintTraverse;
-	inline CDetourHook DrawModelExecute;
+	inline CDetourHook DrawModel;
 	inline CDetourHook RunCommand;
 	inline CDetourHook SendMessageGC;
 	inline CDetourHook RetrieveMessage;
@@ -126,13 +127,12 @@ namespace H
 	long	D3DAPI		hkReset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pPresentationParameters);
 	long	D3DAPI		hkEndScene(IDirect3DDevice9* pDevice);
 	bool	FASTCALL	hkCreateMove(IClientModeShared* thisptr, int edx, float flInputSampleTime, CUserCmd* pCmd);
-	void	FASTCALL	hkPaintTraverse(ISurface* thisptr, int edx, unsigned int iPanel, bool bForceRepaint, bool bForce);
+	void	FASTCALL	hkPaintTraverse(ISurface* thisptr, int edx, unsigned int uPanel, bool bForceRepaint, bool bForce);
 	void	FASTCALL	hkPlaySound(ISurface* thisptr, int edx, const char* szFileName);
 	void	FASTCALL	hkLockCursor(ISurface* thisptr, int edx);
 	void	FASTCALL	hkFrameStageNotify(IBaseClientDll* thisptr, int edx, EClientFrameStage stage);
-	bool	FASTCALL	hkDispatchUserMessage(IBaseClientDll* thisptr, int edx, int iMessageType, unsigned int a3, unsigned int uBytes, const void* bfMessageData);
-	void	FASTCALL	hkDrawModelExecute(IVModelRender* thisptr, int edx, IMatRenderContext* pContext, const DrawModelState_t& state, const ModelRenderInfo_t& pInfo, matrix3x4_t* pCustomBoneToWorld);
-	int		FASTCALL	hkListLeavesInBox(void* thisptr, int edx, Vector& vecMins, Vector& vecMaxs, unsigned short* puList, int iListMax);
+	void	FASTCALL	hkDrawModel(IStudioRender* thisptr, int edx, DrawModelResults_t* pResults, const DrawModelInfo_t& info, matrix3x4_t* pBoneToWorld, float* flFlexWeights, float* flFlexDelayedWeights, const Vector& vecModelOrigin, int nFlags);
+	int		FASTCALL	hkListLeavesInBox(void* thisptr, int edx, const Vector& vecMins, const Vector& vecMaxs, unsigned short* puList, int nListMax);
 	bool	FASTCALL	hkIsConnected(IEngineClient* thisptr, int edx);
 	bool	FASTCALL	hkSendNetMsg(INetChannel* thisptr, int edx, INetMessage* pMessage, bool bForceReliable, bool bVoice);
 	int		FASTCALL	hkSendDatagram(INetChannel* thisptr, int edx, bf_write* pDatagram);

@@ -69,11 +69,11 @@ void W::MainWindow(IDirect3DDevice9* pDevice)
 	ImGuiStyle& style = ImGui::GetStyle();
 	ImDrawList* pDrawList = ImGui::GetForegroundDrawList();
 
-	#pragma region render_main_visuals
+	#pragma region main_visuals
 	if (!I::Engine->IsTakingScreenshot() && !I::Engine->IsDrawingLoadingImage())
 	{
-		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImColor(0, 0, 0, 10).Value);
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(0, 0, 0, 10).Value);
+		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.f, 0.f, 0.f, 0.03f));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.f, 0.f, 0.f, 0.03f));
 
 		// hmm, another one watermark
 		ImGui::BeginMainMenuBar();
@@ -85,17 +85,17 @@ void W::MainWindow(IDirect3DDevice9* pDevice)
 			static ImVec2 vecInsecureSize = F::SmallestPixel->CalcTextSizeA(16.f, FLT_MAX, 0.0f, szInsecure);
 
 			if (strstr(GetCommandLine(), XorStr("-insecure")) != nullptr)
-				ImGui::AddText(pWindowDrawList, F::SmallestPixel, 16.f, ImVec2(0, 0), szInsecure, ImColor(255, 255, 0));
+				ImGui::AddText(pWindowDrawList, F::SmallestPixel, 16.f, ImVec2(0, 0), szInsecure, IM_COL32(255, 255, 0, 255));
 
 			static const char* szSendPackets = XorStr("send packets");
 			static ImVec2 vecSendPacketsSize = F::SmallestPixel->CalcTextSizeA(16.f, FLT_MAX, 0.0f, szSendPackets);
 
 			if (I::Engine->IsInGame())
-				ImGui::AddText(pWindowDrawList, F::SmallestPixel, 16.f, ImVec2(vecInsecureSize.x + 10.f, 0), szSendPackets, G::bSendPacket ? ImColor(0, 255, 0) : ImColor(255, 0, 0));
+				ImGui::AddText(pWindowDrawList, F::SmallestPixel, 16.f, ImVec2(vecInsecureSize.x + 10.f, 0), szSendPackets, G::bSendPacket ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255));
 
 			static const char* szName = XorStr("qo0 base | " __DATE__);
 			static ImVec2 vecNameSize = F::SmallestPixel->CalcTextSizeA(16.f, FLT_MAX, 0.0f, szName);
-			ImGui::AddText(pWindowDrawList, F::SmallestPixel, 16.f, ImGui::GetWindowContentRegionMax() - ImVec2(vecNameSize.x, vecNameSize.y * 0.5f), szName, ImColor(255, 255, 255));
+			ImGui::AddText(pWindowDrawList, F::SmallestPixel, 16.f, ImGui::GetWindowContentRegionMax() - ImVec2(vecNameSize.x, vecNameSize.y * 0.5f), szName, IM_COL32(255, 255, 255, 255));
 
 			ImGui::EndMainMenuBar();
 		}
@@ -106,7 +106,7 @@ void W::MainWindow(IDirect3DDevice9* pDevice)
 	CVisuals::Get().Run(pDrawList, vecScreenSize);
 	#pragma endregion
 
-	#pragma region render_main_window
+	#pragma region main_window
 	ImGui::PushFont(F::Whitney);
 	io.MouseDrawCursor = bMainOpened;
 
@@ -128,8 +128,8 @@ void W::MainWindow(IDirect3DDevice9* pDevice)
 			float flWindowWidth = ImGui::GetWindowWidth();
 
 			// header separate line
-			pDrawList->AddRectFilledMultiColor(ImVec2(vecPos.x - 8.f, vecPos.y - 6.f), ImVec2(vecPos.x + flWindowWidth - flWindowWidth / 3.f - 8.f, vecPos.y - 8.f), ImColor(75, 50, 105, 255), ImColor(110, 100, 130, 255), ImColor(110, 100, 130, 255), ImColor(75, 50, 105, 255));
-			pDrawList->AddRectFilledMultiColor(ImVec2(vecPos.x + flWindowWidth - flWindowWidth / 3.f - 8.f, vecPos.y - 6.f), ImVec2(vecPos.x + flWindowWidth - 8.f, vecPos.y - 8.f), ImColor(110, 100, 130, 255), ImColor(75, 50, 105, 255), ImColor(75, 50, 105, 255), ImColor(110, 100, 130, 255));
+			pDrawList->AddRectFilledMultiColor(ImVec2(vecPos.x - 8.f, vecPos.y - 6.f), ImVec2(vecPos.x + flWindowWidth - flWindowWidth / 3.f - 8.f, vecPos.y - 8.f), IM_COL32(75, 50, 105, 255), IM_COL32(110, 100, 130, 255), IM_COL32(110, 100, 130, 255), IM_COL32(75, 50, 105, 255));
+			pDrawList->AddRectFilledMultiColor(ImVec2(vecPos.x + flWindowWidth - flWindowWidth / 3.f - 8.f, vecPos.y - 6.f), ImVec2(vecPos.x + flWindowWidth - 8.f, vecPos.y - 8.f), IM_COL32(110, 100, 130, 255), IM_COL32(75, 50, 105, 255), IM_COL32(75, 50, 105, 255), IM_COL32(110, 100, 130, 255));
 
 			// add tabs
 			static std::array<CTab, 4U> const arrTabs =
@@ -152,7 +152,7 @@ void W::MainWindow(IDirect3DDevice9* pDevice)
 }
 #pragma endregion
 
-#pragma region menu_main_tabs
+#pragma region menu_tabs
 template <std::size_t S>
 void T::Render(const char* szTabBar, const std::array<CTab, S> arrTabs, int* nCurrentTab, const ImVec4& colActive, ImGuiTabBarFlags flags)
 {
@@ -183,7 +183,9 @@ void T::Render(const char* szTabBar, const std::array<CTab, S> arrTabs, int* nCu
 	}
 	ImGui::PopStyleColor();
 }
+#pragma endregion
 
+#pragma region menu_tabs_main
 void T::RageBot()
 {
 	ImGuiStyle& style = ImGui::GetStyle();
@@ -221,7 +223,10 @@ void T::RageBot()
 
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(style.FramePadding.x, -1));
 			ImGui::Combo(XorStr("pitch"), &C::Get<int>(Vars.iAntiAimPitch), XorStr("none\0up\0down\0zero (untrusted)\0\0"));
-			ImGui::Combo(XorStr("yaw"), &C::Get<int>(Vars.iAntiAimYaw), XorStr("none\0sideways\0\0"));
+			ImGui::Combo(XorStr("yaw"), &C::Get<int>(Vars.iAntiAimYaw), XorStr("none\0desync\0\0"));
+
+			if (C::Get<int>(Vars.iAntiAimYaw) == (int)EAntiAimYawType::DESYNC)
+				ImGui::HotKey(XorStr("desync switch"), &C::Get<int>(Vars.iAntiAimDesyncKey));
 			ImGui::PopStyleVar();
 
 			ImGui::EndChild();

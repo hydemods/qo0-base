@@ -51,9 +51,6 @@ bool H::Setup()
 	if (!DTR::FrameStageNotify.Create(MEM::GetVFunc(I::Client, VTABLE::FRAMESTAGENOTIFY), &hkFrameStageNotify))
 		return false;
 
-	if (!DTR::DispatchUserMessage.Create(MEM::GetVFunc(I::Client, VTABLE::DISPATCHUSERMESSAGE), &hkDispatchUserMessage))
-		return false;
-
 	if (!DTR::OverrideView.Create(MEM::GetVFunc(I::ClientMode, VTABLE::OVERRIDEVIEW), &hkOverrideView))
 		return false;
 
@@ -75,13 +72,13 @@ bool H::Setup()
 	if (!DTR::IsConnected.Create(MEM::GetVFunc(I::Engine, VTABLE::ISCONNECTED), &hkIsConnected))
 		return false;
 
-	if (!DTR::ListLeavesInBox.Create(MEM::GetVFunc(I::Engine->GetBSPTreeQuery(), VTABLE::LISTLEAVESINBOX), &hkListLeavesInBox))
-		return false;
+	//if (!DTR::ListLeavesInBox.Create(MEM::GetVFunc(I::Engine->GetBSPTreeQuery(), VTABLE::LISTLEAVESINBOX), &hkListLeavesInBox))
+	//	return false;
 
 	if (!DTR::PaintTraverse.Create(MEM::GetVFunc(I::Panel, VTABLE::PAINTTRAVERSE), &hkPaintTraverse))
 		return false;
 
-	if (!DTR::DrawModelExecute.Create(MEM::GetVFunc(I::ModelRender, VTABLE::DRAWMODELEXECUTE), &hkDrawModelExecute))
+	if (!DTR::DrawModel.Create(MEM::GetVFunc(I::StudioRender, VTABLE::DRAWMODEL), &hkDrawModel))
 		return false;
 
 	if (!DTR::RunCommand.Create(MEM::GetVFunc(I::Prediction, VTABLE::RUNCOMMAND), &hkRunCommand))
@@ -115,16 +112,17 @@ void H::Restore()
 	DTR::Reset.~CDetourHook();
 	DTR::EndScene.~CDetourHook();
 	DTR::FrameStageNotify.~CDetourHook();
-	DTR::DispatchUserMessage.~CDetourHook();
 	DTR::OverrideView.~CDetourHook();
 	DTR::OverrideMouseInput.~CDetourHook();
 	DTR::CreateMove.~CDetourHook();
+	DTR::SendNetMsg.~CDetourHook();
+	DTR::SendDatagram.~CDetourHook();
 	DTR::GetViewModelFOV.~CDetourHook();
 	DTR::DoPostScreenEffects.~CDetourHook();
 	DTR::IsConnected.~CDetourHook();
-	DTR::ListLeavesInBox.~CDetourHook();
+	//DTR::ListLeavesInBox.~CDetourHook();
 	DTR::PaintTraverse.~CDetourHook();
-	DTR::DrawModelExecute.~CDetourHook();
+	DTR::DrawModel.~CDetourHook();
 	DTR::RunCommand.~CDetourHook();
 	DTR::SendMessageGC.~CDetourHook();
 	DTR::RetrieveMessage.~CDetourHook();
@@ -133,6 +131,12 @@ void H::Restore()
 	DTR::PlaySoundSurface.~CDetourHook();
 	DTR::SvCheatsGetBool.~CDetourHook();
 
+	// @note: also should works but makes it undebuggable
+	#if 0
+	MH_DisableHook(MH_ALL_HOOKS);
+	MH_RemoveHook(MH_ALL_HOOKS);
+	#endif
+
 	MH_Uninitialize();
 }
 #pragma endregion
@@ -140,7 +144,7 @@ void H::Restore()
 #pragma region hooks_handlers
 long D3DAPI H::hkReset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
-	static auto oReset = DTR::Reset.GetOriginal<decltype(&hkReset)>();//VMT::Direct.GetOriginal<decltype(&hkReset)>(VTABLE::RESET);
+	static auto oReset = DTR::Reset.GetOriginal<decltype(&hkReset)>();
 
 	// check for first initialization
 	if (!D::bInitialized)
@@ -279,7 +283,7 @@ bool FASTCALL H::hkCreateMove(IClientModeShared* thisptr, int edx, float flInput
 			CMiscellaneous::Get().FakeLag(pCmd, pLocal, bSendPacket);
 
 		if (C::Get<bool>(Vars.bAntiAim))
-			CAntiAim::Get().Run(pCmd, pLocal, pCmd->angViewPoint, bSendPacket);
+			CAntiAim::Get().Run(pCmd, pLocal, bSendPacket);
 
 		if (C::Get<bool>(Vars.bLegit))
 			CLegitBot::Get().Run(pCmd, pLocal, bSendPacket);
@@ -298,30 +302,12 @@ bool FASTCALL H::hkCreateMove(IClientModeShared* thisptr, int edx, float flInput
 		pCmd->angViewPoint.Clamp();
 	}
 
-	// we are choking a command, and we have not already choked a command
-	if (!bSendPacket && I::ClientState->iChokedCommands == 0)
-		// save our first choked angles for later use
-		angLastChokedReal = pCmd->angViewPoint;
-	// if we are sending a command, and we have previously choked commands
-	else if (bSendPacket && I::ClientState->iChokedCommands > 0)
-		// apply the first choked angles
-		G::angRealView = angLastChokedReal;
-	// if we are sending a command, and have not choked any commands
-	else if (bSendPacket && I::ClientState->iChokedCommands == 0)
-		// apply the sent angles
-		G::angRealView = pCmd->angViewPoint;
-	else if (!bSendPacket)
-	{
-		G::angFakeView = pCmd->angViewPoint;
-		G::vecFakeOrigin = pLocal->GetOrigin();
-	}
-
 	if (C::Get<bool>(Vars.bPingSpike))
 		CLagCompensation::Get().UpdateIncomingSequences(pNetChannel);
 	else
 		CLagCompensation::Get().ClearIncomingSequences();
 
-	// @note: do not restore/remove this when unloading
+	// @note: doesnt need rehook cuz detours here
 	if (pNetChannel != nullptr)
 	{
 		if (!DTR::SendNetMsg.IsHooked())
@@ -330,13 +316,11 @@ bool FASTCALL H::hkCreateMove(IClientModeShared* thisptr, int edx, float flInput
 		if (!DTR::SendDatagram.IsHooked())
 			DTR::SendDatagram.Create(MEM::GetVFunc(pNetChannel, VTABLE::SENDDATAGRAM), H::hkSendDatagram);
 	}
-	else
-	{
-		DTR::SendNetMsg.Remove();
-		DTR::SendDatagram.Remove();
-	}
 
-	// get next global sendpacket state
+	// save next view angles state
+	G::angRealView = pCmd->angViewPoint;
+
+	// save next global sendpacket state
 	G::bSendPacket = bSendPacket;
 
 	// @note: i seen many times this mistake and please do not set/clamp angles here cuz u get confused with psilent aimbot later!
@@ -344,15 +328,15 @@ bool FASTCALL H::hkCreateMove(IClientModeShared* thisptr, int edx, float flInput
 	return false;
 }
 
-void FASTCALL H::hkPaintTraverse(ISurface* thisptr, int edx, unsigned int iPanel, bool bForceRepaint, bool bForce)
+void FASTCALL H::hkPaintTraverse(ISurface* thisptr, int edx, unsigned int uPanel, bool bForceRepaint, bool bForce)
 {
 	static auto oPaintTraverse = DTR::PaintTraverse.GetOriginal<decltype(&hkPaintTraverse)>();
 
 	// remove zoom panel
-	if (!I::Engine->IsTakingScreenshot() && C::Get<bool>(Vars.bWorld) && C::Get<std::vector<bool>>(Vars.vecWorldRemovals).at(REMOVAL_SCOPE) && !strcmp(I::Panel->GetName(iPanel), XorStr("HudZoom")))
+	if (!I::Engine->IsTakingScreenshot() && C::Get<bool>(Vars.bWorld) && C::Get<std::vector<bool>>(Vars.vecWorldRemovals).at(REMOVAL_SCOPE) && !strcmp(I::Panel->GetName(uPanel), XorStr("HudZoom")))
 		return;
 
-	oPaintTraverse(thisptr, edx, iPanel, bForceRepaint, bForce);
+	oPaintTraverse(thisptr, edx, uPanel, bForceRepaint, bForce);
 }
 
 void FASTCALL H::hkPlaySound(ISurface* thisptr, int edx, const char* szFileName)
@@ -378,7 +362,14 @@ void FASTCALL H::hkFrameStageNotify(IBaseClientDll* thisptr, int edx, EClientFra
 {
 	static auto oFrameStageNotify = DTR::FrameStageNotify.GetOriginal<decltype(&hkFrameStageNotify)>();
 
-	if (!I::Engine->IsInGame() || I::Engine->IsTakingScreenshot())
+	if (!I::Engine->IsInGame())
+	{
+		// clear sequences or we get commands overflow on new map connection
+		CLagCompensation::Get().ClearIncomingSequences();
+		return oFrameStageNotify(thisptr, edx, stage);
+	}
+
+	if (I::Engine->IsTakingScreenshot())
 		return oFrameStageNotify(thisptr, edx, stage);
 
 	CBaseEntity* pLocal = U::GetLocalPlayer();
@@ -441,22 +432,13 @@ void FASTCALL H::hkFrameStageNotify(IBaseClientDll* thisptr, int edx, EClientFra
 		I::Input->bCameraInThirdPerson = bThirdPerson && pLocal->IsAlive() && !I::Engine->IsTakingScreenshot();
 		I::Input->vecCameraOffset.z = bThirdPerson ? C::Get<float>(Vars.flWorldThirdPersonOffset) : 150.f;
 
-		/*
-		 * @note: set custom thirdperson angles (e.g. fake's)
-		 * works, but ducarii shared more properly thirdperson angles setting here:
-		 * https://www.unknowncheats.me/forum/counterstrike-global-offensive/340475-properly-setting-thirdperson-angles.html
-		 * and it will be more efficient
-		 */
-		if (bThirdPerson && pLocal->IsAlive() && I::Input->bCameraInThirdPerson && C::Get<bool>(Vars.bAntiAim))
-			*pLocal->GetThirdPersonAngles() = G::angFakeView;
-
 		break;
 	};
 	case FRAME_NET_UPDATE_END:
 	{
 		/*
 		 * received all packets, now do interpolation, prediction, etc
-		 * e.g. bactrack stuff
+		 * e.g. backtrack stuff
 		 */
 
 		break;
@@ -496,71 +478,63 @@ void FASTCALL H::hkFrameStageNotify(IBaseClientDll* thisptr, int edx, EClientFra
 	}
 }
 
-bool FASTCALL H::hkDispatchUserMessage(IBaseClientDll* thisptr, int edx, int iMessageType, unsigned int a3, unsigned int uBytes, const void* bfMessageData)
+void FASTCALL H::hkDrawModel(IStudioRender* thisptr, int edx, DrawModelResults_t* pResults, const DrawModelInfo_t& info, matrix3x4_t* pBoneToWorld, float* flFlexWeights, float* flFlexDelayedWeights, const Vector& vecModelOrigin, int nFlags)
 {
-	static auto oDispatchUserMessage = DTR::DispatchUserMessage.GetOriginal<decltype(&hkDispatchUserMessage)>();
+	static auto oDrawModel = DTR::DrawModel.GetOriginal<decltype(&hkDrawModel)>();
 
-	return oDispatchUserMessage(thisptr, edx, iMessageType, a3, uBytes, bfMessageData);
-}
-
-void FASTCALL H::hkDrawModelExecute(IVModelRender* thisptr, int edx, IMatRenderContext* pContext, const DrawModelState_t& state, const ModelRenderInfo_t& pInfo, matrix3x4_t* pCustomBoneToWorld)
-{
-	static auto oDrawModelExecute = DTR::DrawModelExecute.GetOriginal<decltype(&hkDrawModelExecute)>();
-
-	if (!I::Engine->IsInGame() || I::ModelRender->IsForcedMaterialOverride() || I::Engine->IsTakingScreenshot())
-		return oDrawModelExecute(thisptr, edx, pContext, state, pInfo, pCustomBoneToWorld);
+	if (!I::Engine->IsInGame() || I::Engine->IsTakingScreenshot())
+		return oDrawModel(thisptr, edx, pResults, info, pBoneToWorld, flFlexWeights, flFlexDelayedWeights, vecModelOrigin, nFlags);
 
 	CBaseEntity* pLocal = U::GetLocalPlayer();
+	bool bClearOverride = false;
 
-	// master check
 	if (pLocal != nullptr && C::Get<bool>(Vars.bEsp) && C::Get<bool>(Vars.bEspChams))
-		CVisuals::Get().Chams(pLocal, pContext, state, pInfo, pCustomBoneToWorld);
+		bClearOverride = CVisuals::Get().Chams(pLocal, pResults, info, pBoneToWorld, flFlexWeights, flFlexDelayedWeights, vecModelOrigin, nFlags);
 
-	// draw original model
-	oDrawModelExecute(thisptr, edx, pContext, state, pInfo, pCustomBoneToWorld);
-
-	// clear overrides
-	I::ModelRender->ForcedMaterialOverride(nullptr);
+	oDrawModel(thisptr, edx, pResults, info, pBoneToWorld, flFlexWeights, flFlexDelayedWeights, vecModelOrigin, nFlags);
+	
+	if (bClearOverride)
+		I::StudioRender->ForcedMaterialOverride(nullptr);
 }
 
-int FASTCALL H::hkListLeavesInBox(void* thisptr, int edx, Vector& vecMins, Vector& vecMaxs, unsigned short* puList, int iListMax)
+int FASTCALL H::hkListLeavesInBox(void* thisptr, int edx, const Vector& vecMins, const Vector& vecMaxs, unsigned short* puList, int nListMax)
 {
 	static auto oListLeavesInBox = DTR::ListLeavesInBox.GetOriginal<decltype(&hkListLeavesInBox)>();
 
+	// @todo: sometimes models doesnt drawn on certain maps (not only me: https://www.unknowncheats.me/forum/counterstrike-global-offensive/330483-disable-model-occulusion-3.html)
+
 	// @credits: soufiw
 	// occulusion getting updated on player movement/angle change,
-	// in RecomputeRenderableLeaves ( https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L674 )
-	static std::uintptr_t uInsertIntoTree = (MEM::FindPattern(CLIENT_DLL, XorStr("56 52 FF 50 18")) + 0x5);
+	// in RecomputeRenderableLeaves https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L674
+	static std::uintptr_t uInsertIntoTree = (MEM::FindPattern(CLIENT_DLL, XorStr("56 52 FF 50 18")) + 0x5); // @xref: "<unknown renderable>"
 
-		// check esp state
-	if (!C::Get<bool>(Vars.bEsp) | !C::Get<bool>(Vars.bEspChams) ||
-		// filters check
-		!C::Get<bool>(Vars.bEspChamsEnemies) || !C::Get<bool>(Vars.bEspChamsAllies)
-		// check for return in CClientLeafSystem::InsertIntoTree
-		|| _ReturnAddress() != (void*)uInsertIntoTree)
-		return oListLeavesInBox(thisptr, edx, vecMins, vecMaxs, puList, iListMax);
+	// check for esp state and call from CClientLeafSystem::InsertIntoTree
+	if (C::Get<bool>(Vars.bEsp) && C::Get<bool>(Vars.bEspChams) && (C::Get<bool>(Vars.bEspChamsEnemies) || C::Get<bool>(Vars.bEspChamsAllies)) && std::uintptr_t(_ReturnAddress()) == uInsertIntoTree)
+	{
+		// get current renderable info from stack https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L1470
+		if (const auto pInfo = *(RenderableInfo_t**)((std::uintptr_t)_AddressOfReturnAddress() + 0x14); pInfo != nullptr)
+		{
+			if (const auto pRenderable = pInfo->pRenderable; pRenderable != nullptr)
+			{
+				// check if disabling occulusion for players
+				if (const auto pEntity = pRenderable->GetIClientUnknown()->GetBaseEntity(); pEntity && pEntity->IsPlayer())
+				{
+					// fix render order, force translucent group (https://www.unknowncheats.me/forum/2429206-post15.html)
+					// AddRenderablesToRenderLists: https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L2473
+					// @ida addrenderablestorenderlists: 55 8B EC 83 EC 24 53 56 8B 75 08 57 8B 46
+					pInfo->uFlags &= ~RENDER_FLAGS_FORCE_OPAQUE_PASS;
+					pInfo->uFlags2 |= RENDER_FLAGS_BOUNDS_ALWAYS_RECOMPUTE;
 
-	// get current renderable info from stack ( https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L1470 )
-	RenderableInfo_t* pInfo = *(RenderableInfo_t**)((std::uintptr_t)_AddressOfReturnAddress() + 0x14);
+					// extend world space bounds to maximum https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L707
+					static const Vector vecMapMin = Vector(MIN_COORD_FLOAT, MIN_COORD_FLOAT, MIN_COORD_FLOAT);
+					static const Vector vecMapMax = Vector(MAX_COORD_FLOAT, MAX_COORD_FLOAT, MAX_COORD_FLOAT);
+					return oListLeavesInBox(thisptr, edx, vecMapMin, vecMapMax, puList, nListMax);
+				}
+			}
+		}
+	}
 
-	if (pInfo == nullptr || pInfo->pRenderable == nullptr)
-		return oListLeavesInBox(thisptr, edx, vecMins, vecMaxs, puList, iListMax);
-
-	// check if disabling occulusion for players ( https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L1491 )
-	CBaseEntity* pEntity = pInfo->pRenderable->GetIClientUnknown()->GetBaseEntity();
-
-	if (pEntity == nullptr || !pEntity->IsPlayer())
-		return oListLeavesInBox(thisptr, edx, vecMins, vecMaxs, puList, iListMax);
-
-	// fix render order, force translucent group ( https://www.unknowncheats.me/forum/2429206-post15.html )
-	// AddRenderablesToRenderLists: https://i.imgur.com/hcg0NB5.png ( https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L2473 )
-	pInfo->uFlags &= ~RENDER_FLAGS_FORCE_OPAQUE_PASS;
-	pInfo->uFlags2 |= 0xC0;
-
-	// extend world space bounds to maximum ( https://github.com/pmrowla/hl2sdk-csgo/blob/master/game/client/clientleafsystem.cpp#L707 )
-	static Vector vecMapMin(MIN_COORD_FLOAT, MIN_COORD_FLOAT, MIN_COORD_FLOAT);
-	static Vector vecMapMax(MAX_COORD_FLOAT, MAX_COORD_FLOAT, MAX_COORD_FLOAT);
-	return oListLeavesInBox(thisptr, edx, vecMapMin, vecMapMax, puList, iListMax);
+	return oListLeavesInBox(thisptr, edx, vecMins, vecMaxs, puList, nListMax);
 }
 
 bool FASTCALL H::hkIsConnected(IEngineClient* thisptr, int edx)
@@ -695,6 +669,9 @@ int FASTCALL H::hkDoPostScreenEffects(IClientModeShared* thisptr, int edx, CView
 void FASTCALL H::hkRunCommand(IPrediction* thisptr, int edx, CBaseEntity* pEntity, CUserCmd* pCmd, IMoveHelper* pMoveHelper)
 {
 	static auto oRunCommand = DTR::RunCommand.GetOriginal<decltype(&hkRunCommand)>();
+
+	/* there is tickbase corrections / velocity modifier fix */
+
 	oRunCommand(thisptr, edx, pEntity, pCmd, pMoveHelper);
 
 	// get movehelper interface pointer
@@ -708,10 +685,10 @@ int FASTCALL H::hkSendMessage(ISteamGameCoordinator* thisptr, int edx, std::uint
 	std::uint32_t uMessageType = uMsgType & 0x7FFFFFFF;
 	void* pDataMutable = const_cast<void*>(pData);
 
-	int gcStatus = oSendMessage(thisptr, edx, uMsgType, pDataMutable, uData);
+	int iStatus = oSendMessage(thisptr, edx, uMsgType, pDataMutable, uData);
 
-	if (gcStatus != EGCResultOK)
-		return gcStatus;
+	if (iStatus != EGCResultOK)
+		return iStatus;
 
 	#if _DEBUG
 	L::PushConsoleColor(FOREGROUND_INTENSE_GREEN | FOREGROUND_RED);
@@ -719,16 +696,16 @@ int FASTCALL H::hkSendMessage(ISteamGameCoordinator* thisptr, int edx, std::uint
 	L::PopConsoleColor();
 	#endif
 
-	return gcStatus;
+	return iStatus;
 }
 
 int FASTCALL H::hkRetrieveMessage(ISteamGameCoordinator* thisptr, int edx, std::uint32_t* puMsgType, void* pDest, std::uint32_t uDest, std::uint32_t* puMsgSize)
 {
 	static auto oRetrieveMessage = DTR::RetrieveMessage.GetOriginal<decltype(&hkRetrieveMessage)>();
-	int gcStatus = oRetrieveMessage(thisptr, edx, puMsgType, pDest, uDest, puMsgSize);
+	int iStatus = oRetrieveMessage(thisptr, edx, puMsgType, pDest, uDest, puMsgSize);
 
-	if (gcStatus != EGCResultOK)
-		return gcStatus;
+	if (iStatus != EGCResultOK)
+		return iStatus;
 
 	std::uint32_t uMessageType = *puMsgType & 0x7FFFFFFF;
 
@@ -738,10 +715,15 @@ int FASTCALL H::hkRetrieveMessage(ISteamGameCoordinator* thisptr, int edx, std::
 	L::PopConsoleColor();
 	#endif
 
-	if (C::Get<bool>(Vars.bAutoAccept) && uMessageType == 9177 /*k_EMsgGCCStrike15_v2_GCToClientSteamdatagramTicket*/)
+	// check for k_EMsgGCCStrike15_v2_GCToClientSteamdatagramTicket message when we can accept the game
+	if (C::Get<bool>(Vars.bAutoAccept) && uMessageType == 9177)
+	{
 		U::SetLocalPlayerReady();
+		Beep(500, 800);
+		U::FlashWindow(IPT::hWindow);
+	}
 
-	return gcStatus;
+	return iStatus;
 }
 
 void FASTCALL H::hkEmitSound(IEngineSound* thisptr, int edx, IRecipientFilter& filter, int nEntityIndex, int iChannel, const char* szSoundEntry, unsigned int uSoundEntryHash, const char* szSample, float flVolume, float flAttenuation, int nSeed, int iFlags, int iPitch, const Vector* vecOrigin, const Vector* vecDirection, CUtlVector<Vector>* pUtlVecOrigins, bool bUpdatePositions, int flSoundTime, int nSpeakerEntity, StartSoundParams_t& parameters)
@@ -749,20 +731,6 @@ void FASTCALL H::hkEmitSound(IEngineSound* thisptr, int edx, IRecipientFilter& f
 	static auto oEmitSound = DTR::EmitSound.GetOriginal<decltype(&hkEmitSound)>();
 
 	// @note: for sound esp use: "player/footsteps", "player/land", "clipout" sounds check
-
-	if (C::Get<bool>(Vars.bAutoAccept) && strcmp(szSoundEntry, XorStr("UIPanorama.popup_accept_match_beep")) == 0)
-	{
-		U::SetLocalPlayerReady();
-
-		FLASHWINFO fwInfo;
-		fwInfo.cbSize = sizeof(FLASHWINFO);
-		fwInfo.hwnd = IPT::hWindow;
-		fwInfo.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
-		fwInfo.uCount = 0;
-		fwInfo.dwTimeout = 0;
-		Beep(100, 5);
-		FlashWindowEx(&fwInfo);
-	}
 
 	oEmitSound(thisptr, edx, filter, nEntityIndex, iChannel, szSoundEntry, uSoundEntryHash, szSample, flVolume, flAttenuation, nSeed, iFlags, iPitch, vecOrigin, vecDirection, pUtlVecOrigins, bUpdatePositions, flSoundTime, nSpeakerEntity, parameters);
 }

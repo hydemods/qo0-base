@@ -12,12 +12,25 @@ class CAntiAim : public CSingleton<CAntiAim>
 {
 public:
 	// Get
-	void Run(CUserCmd* pCmd, CBaseEntity* pLocal, QAngle angles, bool& bSendPacket);
+	void Run(CUserCmd* pCmd, CBaseEntity* pLocal, bool& bSendPacket);
+	/* get next lby update */
+	void UpdateServerAnimations(CUserCmd* pCmd, CBaseEntity* pLocal, float flServerTime); // @credits: pazzo
+
 	// Values
-	/* current lowerbody yaw update state */
-	bool bLowerBodyUpdate = false;
+	/* angles modified by antiaim and being sent */
+	QAngle angSentView = { };
 private:
 	// Main
-	void Pitch(CBaseEntity* pLocal, QAngle& angle);
-	void Yaw(CBaseEntity* pLocal, QAngle& angle, bool& bSendPacket);
+	void Pitch(CUserCmd* pCmd, CBaseEntity* pLocal);
+	void Yaw(CUserCmd* pCmd, CBaseEntity* pLocal, float flServerTime, bool& bSendPacket);
+
+	// Extra
+	/* returns max server desynchronization angle delta */
+	float GetMaxDesyncDelta(CBasePlayerAnimState* pAnimState); // @credits: sharklaser1's reversed setupvelocity
+
+	// Values
+	/* updated by server animstate */
+	CBasePlayerAnimState* pServerAnimState = nullptr;
+	/* next lower body yaw update time from server */
+	float flNextLowerBodyUpdate = 0.f;
 };

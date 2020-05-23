@@ -11,7 +11,6 @@
 #include "../../resources/qo0icons.h"
 
 #pragma region imgui_extended
-
 /*
  * what is changed in imgui framework files (currently used imgui version is v1.75):
  * changed things can be found with "modified by qo0" commentary
@@ -292,9 +291,9 @@ void ImGui::AddText(ImDrawList* pDrawList, const ImVec2& vecPosition, const char
 {
 	AddText(pDrawList, nullptr, 0.f, vecPosition, szText, colText, colOutline);
 }
-
 #pragma endregion
 
+#pragma region draw_get
 void D::Setup(IDirect3DDevice9* pDevice, unsigned int uFontFlags)
 {
 	ImGui::CreateContext();
@@ -449,8 +448,6 @@ void D::Setup(IDirect3DDevice9* pDevice, unsigned int uFontFlags)
 
 void D::Destroy()
 {
-	// @todo: imgui crashing cuz font atlas builded with freetype, requires edits
-
 	// shutdown imgui directx9 renderer binding
 	ImGui_ImplDX9_Shutdown();
 
@@ -460,9 +457,9 @@ void D::Destroy()
 	// destroy imgui context
 	ImGui::DestroyContext();
 }
+#pragma endregion
 
 #pragma region draw_extra
-
 bool D::WorldToScreen(const Vector& vecOrigin, Vector2D& vecScreen)
 {
 	static std::uintptr_t uViewMatrixPtr = 0U;
@@ -494,5 +491,4 @@ bool D::WorldToScreen(const Vector& vecOrigin, Vector2D& vecScreen)
 
 	return false;
 }
-
 #pragma endregion

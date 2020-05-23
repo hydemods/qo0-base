@@ -243,7 +243,7 @@ class IClientRenderable
 public:
 	virtual IClientUnknown*			GetIClientUnknown() = 0;
 	virtual Vector&					GetRenderOrigin() = 0;
-	virtual Vector&					GetRenderAngles() = 0;
+	virtual QAngle&					GetRenderAngles() = 0;
 	virtual bool					ShouldDraw() = 0;
 	virtual int						GetRenderFlags() = 0;
 	virtual bool					IsTransparent() = 0;
@@ -396,6 +396,41 @@ class CBaseEntity : public IClientEntity, public CBaseViewModel
 {
 public:
 	/* DT_BasePlayer */
+
+	int* GetButtons()
+	{
+		static std::uintptr_t m_nButtons = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_nButtons"));
+		return (int*)((std::uintptr_t)this + m_nButtons);
+	}
+
+	int& GetButtonLast()
+	{
+		static std::uintptr_t m_afButtonLast = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_afButtonLast"));
+		return *(int*)((std::uintptr_t)this + m_afButtonLast);
+	}
+
+	int& GetButtonPressed()
+	{
+		static std::uintptr_t m_afButtonPressed = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_afButtonPressed"));
+		return *(int*)((std::uintptr_t)this + m_afButtonPressed);
+	}
+
+	int& GetButtonReleased()
+	{
+		static std::uintptr_t m_afButtonReleased = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_afButtonReleased"));
+		return *(int*)((std::uintptr_t)this + m_afButtonReleased);
+	}
+
+	int GetButtonDisabled()
+	{
+		return *(int*)((std::uintptr_t)this + 0x3330);
+	}
+
+	int GetButtonForced()
+	{
+		return *(int*)((std::uintptr_t)this + 0x3334);
+	}
+
 	float* GetFallVelocity()
 	{
 		return (float*)((std::uintptr_t)this + CNetvarManager::Get().flFallVelocity);
@@ -414,6 +449,12 @@ public:
 	Vector& GetViewOffset()
 	{
 		return *(Vector*)((std::uintptr_t)this + CNetvarManager::Get().vecViewOffset);
+	}
+
+	int* GetImpulse()
+	{
+		static std::uintptr_t m_nImpulse = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_nImpulse"));
+		return (int*)((std::uintptr_t)this + m_nImpulse);
 	}
 
 	int& GetTickBase()
@@ -569,7 +610,7 @@ public:
 
 	float GetSurfaceFriction()
 	{
-		const std::uintptr_t m_surfaceFriction = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_surfaceFriction"));
+		static std::uintptr_t m_surfaceFriction = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_surfaceFriction"));
 		return *(float*)((std::uintptr_t)this + m_surfaceFriction);
 	}
 
@@ -632,13 +673,13 @@ public:
 
 	QAngle GetAbsRotation()
 	{
-		const std::uintptr_t m_angAbsRotation = CNetvarManager::Get().FindInDataMap(this->GetDataDescMap(), FNV1A::HashConst("m_angAbsRotation"));
+		static std::uintptr_t m_angAbsRotation = CNetvarManager::Get().FindInDataMap(this->GetDataDescMap(), FNV1A::HashConst("m_angAbsRotation"));
 		return *(QAngle*)((std::uintptr_t)this + m_angAbsRotation);
 	}
 
 	EMoveType GetMoveType()
 	{
-		const std::uintptr_t m_MoveType = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_MoveType"));
+		static std::uintptr_t m_MoveType = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_MoveType"));
 		return *(EMoveType*)((std::uintptr_t)this + m_MoveType);
 	}
 
@@ -664,7 +705,7 @@ public:
 
 	const matrix3x4_t& GetCoordinateFrame()
 	{
-		const std::uintptr_t m_rgflCoordinateFrame = CNetvarManager::Get().FindInDataMap(this->GetDataDescMap(), FNV1A::HashConst("m_rgflCoordinateFrame"));
+		static std::uintptr_t m_rgflCoordinateFrame = CNetvarManager::Get().FindInDataMap(this->GetDataDescMap(), FNV1A::HashConst("m_rgflCoordinateFrame"));
 		return *(const matrix3x4_t*)((std::uintptr_t)this + m_rgflCoordinateFrame);
 	}
 
@@ -709,34 +750,36 @@ public:
 		return *(int*)((std::uintptr_t)this + CNetvarManager::Get().nHitboxSet);
 	}
 
-	std::array<float, 24U>& GetPoseParameter()
-	{
-		return *(std::array<float, 24U>*)((std::uintptr_t)this + CNetvarManager::Get().flPoseParameter);
-	}
-
 	float GetCycle()
 	{
 		return *(float*)((std::uintptr_t)this + CNetvarManager::Get().flCycle);
 	}
 
-	CUtlVector<CAnimationLayer>& GetAnimationStruct()
+	std::array<float, 24U>& GetPoseParameter()
 	{
-		// @pattern = 8B 89 ? ? ? ? 8D 0C D1 + 0x2 // should work but for me offset is easy to update
-		return (*(CUtlVector<CAnimationLayer>*)((std::uintptr_t)this + 0x2990));
+		return *(std::array<float, 24U>*)((std::uintptr_t)this + CNetvarManager::Get().flPoseParameter);
 	}
 
-	int GetNumAnimationOverlays()
+	CAnimationLayer* GetAnimationLayers()
+	{
+		// @pattern = 8B 89 ? ? ? ? 8D 0C D1 + 0x2 // should work but for me offset is easy to update
+		return *(CAnimationLayer**)((std::uintptr_t)this + 0x2990);
+	}
+
+	int GetAnimationOverlaysCount()
 	{
 		return *(int*)((std::uintptr_t)this + 0x299C);
 	}
 
-	CCSGOPlayerAnimState* GetAnimationState()
+	CBasePlayerAnimState* GetAnimationState()
 	{
 		// @xref: "animset_version"
-		// UpdateAnimationState xref: "%s_aim"
-		// CreateAnimationState xref: "ggprogressive_player_levelup"
-		// ResetAnimationState: xref: "player_spawn"
-		return (CCSGOPlayerAnimState*)((std::uintptr_t)this + 0x3900);
+		return (CBasePlayerAnimState*)((std::uintptr_t)this + 0x3900);
+	}
+
+	bool* IsClientSideAnimation()
+	{
+		return (bool*)((std::uintptr_t)this + CNetvarManager::Get().bClientSideAnimation);
 	}
 
 	#pragma region baseentity_exports
@@ -758,16 +801,21 @@ public:
 	Vector GetEyePosition()
 	{
 		Vector vecIn = { };
-		MEM::CallVFunc<void, Vector&>(this, 284, vecIn);
 
+		// get eye position
+		MEM::CallVFunc<void, Vector&>(this, 168, vecIn);
+
+		// correct this like it do weapon_shootpos
+		// @ida weapon_shootpos: 55 8B EC 56 8B 75 08 57 8B F9 56 8B 07 FF 90
 		if (*(int*)((std::uintptr_t)this + 0x3AB4))
 		{
-			CCSGOPlayerAnimState* pAnimState = this->GetAnimationState();
+			CBasePlayerAnimState* pAnimState = this->GetAnimationState();
 
 			if (pAnimState != nullptr)
 				ModifyEyePosition(pAnimState, &vecIn);
 		}
 
+		// return corrected position
 		return vecIn;
 	}
 
@@ -831,7 +879,7 @@ public:
 	inline CAnimationLayer* GetAnimationLayer(int nLayer)
 	{
 		if (nLayer >= 0 && nLayer < MAX_LAYER_RECORDS)
-			return &GetAnimationStruct()[nLayer];
+			return &GetAnimationLayers()[nLayer];
 
 		return nullptr;
 	}
@@ -842,7 +890,7 @@ public:
 	int					GetBoneByHash(const FNV1A_t uBoneHash);
 	Vector				GetHitboxPosition(int iHitbox);
 	Vector				GetHitGroupPosition(int iHitGroup);
-	void				ModifyEyePosition(CCSGOPlayerAnimState* pAnimState, Vector* vecPosition);
+	void				ModifyEyePosition(CBasePlayerAnimState* pAnimState, Vector* vecPosition);
 	int					PostThink();
 	bool				IsEnemy(CBaseEntity* pEntity);
 	bool				IsTargetingLocal(CBaseEntity* pLocal);
@@ -1099,7 +1147,7 @@ public:
 
 	bool IsReloading()
 	{
-		const std::uintptr_t m_bInReload = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_bInReload"));
+		static std::uintptr_t m_bInReload = CNetvarManager::Get().FindInDataMap(this->GetPredDescMap(), FNV1A::HashConst("m_bInReload"));
 		return *(bool*)((std::uintptr_t)this + m_bInReload);
 	}
 
